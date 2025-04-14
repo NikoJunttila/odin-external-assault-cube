@@ -1,0 +1,1 @@
+download odinlang and build with command odin build . or just odin run .

@@ -156,7 +156,7 @@ main :: proc() {
 	read(&bp, uintptr(exe_base_addr) + ENTITY_BASE, &base, size_of(base))
 	fmt.println(base)
 
-	example_read_val : u32 = 0
+	example_read_val: u32 = 0
 	// Reading from target process
 	if read(&bp, uintptr(base) + HEALTH_OFFSET, &example_read_val, size_of(example_read_val)) {
 		fmt.printfln("Successfully read value:%v", example_read_val)
@@ -165,9 +165,8 @@ main :: proc() {
 	}
 
 	cfg := default_config()
-	cfg.update_interval_ms = 10
+	cfg.update_interval_ms = 100
 	for {
-		win.Sleep(cfg.update_interval_ms)
 		if write(
 			&bp,
 			uintptr(base) + ASSAULT_RIFLE_AMMO_OFFSET,
@@ -188,8 +187,9 @@ main :: proc() {
 		} else {
 			fmt.println("Failed to write to target process.")
 		}
+		win.Sleep(cfg.update_interval_ms)
+	
 	}
-
 }
 
 find_pid :: proc(pName: string) -> (u32, bool) {
