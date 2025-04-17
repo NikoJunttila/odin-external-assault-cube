@@ -2,7 +2,6 @@ package external
 
 import "core:fmt"
 import win "core:sys/windows"
-foreign import kernel "system:kernel32.lib"
 foreign import psapi "system:psapi.lib"
 import "core:c"
 import "core:strings"
@@ -48,8 +47,7 @@ get_base_addr :: proc(bp: ^Bypass, process_name: string) -> (win.HMODULE, bool) 
 		)
 		mod_name, _ := win.utf16_to_utf8(mod_name_buf[:])
 		if strings.contains(strings.to_lower(mod_name), strings.to_lower(process_name)) {
-			fmt.printfln("%s", mod_name)
-			fmt.println(hMods[i])
+			fmt.printfln("Found process: %s with base addr: %v", mod_name, hMods[i])
 			return hMods[i], true
 		}
 	}
@@ -83,23 +81,23 @@ find_pid :: proc(pName: string) -> (u32, bool) {
 	return pid, false
 }
 
-init_cheat ::proc() -> (Bypass,rawptr ,bool){
-    bp := bypass_init()
-    pid, ok := find_pid(EXE_NAME)
+init_cheat :: proc() -> (Bypass, rawptr, bool) {
+	bp := bypass_init()
+	pid, ok := find_pid(EXE_NAME)
 	if (!ok) {
 		fmt.println("error getting pid", win.GetLastError())
-		return bp,nil ,false
+		return bp, nil, false
 	}
 	if !attach(&bp, pid) {
 		fmt.println("failed attach")
-		return bp, nil,false
+		return bp, nil, false
 	}
 	exe_base_addr, ok2 := get_base_addr(&bp, EXE_NAME) //should be 0x400000
 	if !ok2 {
 		fmt.println("error getting base addr")
 		return bp, nil, false
 	}
-	// base update base from where we add offset
-	read(&bp, uintptr(exe_base_addr) + ENTITY_BASE, &base, size_of(base))
-    return bp,exe_base_addr ,true
+	//finding player entity base value address
+	read(&bp, uintptr(exe_base_addr) + ENTITY_BASE_OFFSET, &player_base, size_of(player_base))
+	return bp, exe_base_addr, true
 }
