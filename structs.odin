@@ -1,4 +1,18 @@
 package external
+ENTITY_BASE_OFFSET :: 0x18AC00
+ENTITY_LIST_OFFSET :: 0x18AC04
+PLAYER_COUNT_OFFSET :: 0x18AC0C
+xPosOffset :: 0x2C
+yPosOffset :: 0x28
+zPosOffset :: 0x30
+pitchAngleOffset :: 0x34
+yawAngleOffset :: 0x38
+
+ASSAULT_RIFLE_AMMO_OFFSET :: 0x140
+HEALTH_OFFSET :: 0x00EC
+
+PlayerCameraX :: 0x34
+Player_Camera_Y :: 0x38
 
 Config :: struct {
 	target_health:      i32,

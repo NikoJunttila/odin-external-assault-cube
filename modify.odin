@@ -1,26 +1,18 @@
 package external
 
+import "base:runtime"
 import "core:c"
 import "core:fmt"
 import "core:math"
+import "core:math/rand"
 import "core:strings"
+import "core:sync"
 import win "core:sys/windows"
+import "core:thread"
 import "core:time"
-//player entity.
-ENTITY_BASE_OFFSET :: 0x18AC00
-ENTITY_LIST_OFFSET :: 0x18AC04
-PLAYER_COUNT_OFFSET :: 0x18AC0C
-xPosOffset :: 0x2C
-yPosOffset :: 0x28
-zPosOffset :: 0x30
-pitchAngleOffset :: 0x34
-yawAngleOffset :: 0x38
 
-ASSAULT_RIFLE_AMMO_OFFSET :: 0x140
-HEALTH_OFFSET :: 0x00EC
-EXE_NAME :: "ac_client.exe"
-
-player_base: win.DWORD
+player_base: win.DWORD // Assuming these are for later use
+EXE_NAME :: "ac_client.exe" // Assuming these are for later use
 
 main :: proc() {
 	bp, exe_base_addr, ok := init_cheat()
@@ -29,8 +21,16 @@ main :: proc() {
 		return
 	}
 	defer bypass_destroy(&bp)
-	entity_list_loop(&bp, exe_base_addr)
-}
-EntityList :: struct {
-	players: ^ACPlayer,
+	// entity_list_loop(&bp, exe_base_addr, false)
+	worker := thread.create_and_start(overlay)
+	fmt.println("started overlay")
+	time.sleep(1 * time.Second)
+	for {
+		random := rand.int_max(11) + 2
+		y := random * 100
+		x := y - 200
+		fmt.printfln("new box %v %v ", x, y)
+		draw_box("tester main", i32(x), i32(y))
+		time.sleep(1 * time.Second)
+	}
 }
