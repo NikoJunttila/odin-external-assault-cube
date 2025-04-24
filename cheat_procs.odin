@@ -302,7 +302,6 @@ getNearestPlayer :: proc(bp: ^Bypass, ptr: u32, player_count: u32) {
 			fmt.println("Failed to read player username")
 			continue
 		}
-
 		// Ensure we have a proper string from the buffer
 		username_len := 0
 		for j := 0; j < len(username_buffer); j += 1 {
@@ -315,7 +314,6 @@ getNearestPlayer :: proc(bp: ^Bypass, ptr: u32, player_count: u32) {
 			username_len = len(username_buffer)
 		}
 		player.username = strings.clone(string(username_buffer[:username_len]))
-
 		// Read player position
 		if read_error := read(
 			bp,
@@ -326,7 +324,6 @@ getNearestPlayer :: proc(bp: ^Bypass, ptr: u32, player_count: u32) {
 			fmt.println("Failed to read player X position")
 			continue
 		}
-
 		if read_error := read(
 			bp,
 			uintptr(entity_ptr) + uintptr(yPosOffset),
@@ -336,7 +333,6 @@ getNearestPlayer :: proc(bp: ^Bypass, ptr: u32, player_count: u32) {
 			fmt.println("Failed to read player Y position")
 			continue
 		}
-
 		if read_error := read(
 			bp,
 			uintptr(entity_ptr) + uintptr(zPosOffset),
@@ -346,32 +342,16 @@ getNearestPlayer :: proc(bp: ^Bypass, ptr: u32, player_count: u32) {
 			fmt.println("Failed to read player Z position")
 			continue
 		}
-
 		// Calculate distance to local player
 		player.distance = linalg.length(local_player - player.position)
-
 		// Track closest entity
 		if player.distance < closest_entity_distance {
 			closest_entity_distance = player.distance
 			closest_entity_index = i32(i)
 			closest_entity_info = player
 		}
-
 		// Add player to our collection
 		append(&players, player)
-
-		// Print player information including distance
-		/* fmt.println(
-			"-----------------------------------------------------------------------------",
-		)
-		fmt.printf(
-			"username %s: x:%0.2f, y:%0.2f, z:%0.2f | Distance: %0.2f units\n",
-			player.username,
-			player.position.x,
-			player.position.y,
-			player.position.z,
-			player.distance,
-		) */
 	}
 	// Highlight closest entity
 	if closest_entity_index >= 0 {
@@ -390,8 +370,13 @@ getNearestPlayer :: proc(bp: ^Bypass, ptr: u32, player_count: u32) {
 	}
 	// Clean up strings
 	for player in players {
+		fmt.printfln("player hp: %v", player.health)
+		box := Box{player.username,i32(player.position.x), i32(player.position.y),100, true}
+		append(&boxlist, box)
 		delete(player.username)
 	}
+	request_redraw()
+	clear(&boxlist)
 	win.Sleep(500) // Faster refresh rate for more responsive distance calculation
 }
 

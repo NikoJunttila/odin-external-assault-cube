@@ -13,7 +13,13 @@ HEALTH_OFFSET :: 0x00EC
 
 PlayerCameraX :: 0x34
 Player_Camera_Y :: 0x38
-
+Box :: struct {
+    name: string,
+    x: i32,
+    y: i32,
+    size: i32,
+	enemy : bool,
+}
 Config :: struct {
 	target_health:      i32,
 	target_ammo:        i32,

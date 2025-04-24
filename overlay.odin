@@ -8,10 +8,11 @@ import "core:strings"
 import win "core:sys/windows"
 import "core:time"
 
-TRANSPARENCY_COLOR_KEY := win.COLORREF(win.RGB(0, 0, 0)) // Black
-overlaywindow : win.HWND
 DEFAULT_SQUARE_COLOR :: win.COLORREF(0x0000FF)
 DEFAULT_TEXT_COLOR :: win.COLORREF(0x6F4FEF)
+TRANSPARENCY_COLOR_KEY := win.COLORREF(win.RGB(0, 0, 0)) // Black
+overlaywindow : win.HWND
+boxlist : [dynamic]Box
 
 overlay :: proc() {
 	// Get full screen dimensions
@@ -123,8 +124,17 @@ overlay :: proc() {
 		last_error := win.GetLastError()
 		fmt.eprintf("Failed to unregister window class. Error code: %d\n", last_error)
 	}
-
 	fmt.println("Exiting.")
+}
+
+request_redraw :: proc() {
+    if overlaywindow != nil {
+        // Mark the entire window as needing to be redrawn
+        win.InvalidateRect(overlaywindow, nil, true)
+        
+        // Optional: Force an immediate redraw rather than waiting for the next message loop
+        win.UpdateWindow(overlaywindow)
+    }
 }
 // Window Procedure
 window_proc :: proc "stdcall" (
@@ -136,7 +146,6 @@ window_proc :: proc "stdcall" (
 	context = runtime.default_context()
 	switch msg {
 	case win.WM_PAINT:
-		fmt.println("called WM_PAINT")
 		ps: win.PAINTSTRUCT
 		hdc := win.BeginPaint(hwnd, &ps)
 		if hdc != nil {
@@ -151,13 +160,13 @@ window_proc :: proc "stdcall" (
 				win.FillRect(hdc, &client_rect, bg_brush)
 				win.DeleteObject(win.HGDIOBJ(bg_brush)) // Delete the temporary brush
 			}
-			// ----------------------------------------------------------------------
-
 			// --- Call drawing function ---
 			// Anything drawn here with a color *other than* the color key will be visible.
 			// draw_overlay_content(hdc, hwnd)
-			// draw_box("test", 100, 200)
-			// ---------------------------
+			for box in boxlist{
+				draw_box(hdc, box.name, box.x, box.y)
+			}
+			draw_center_box(hdc, overlaywindow)
 
 			win.EndPaint(hwnd, &ps)
 		}
@@ -179,6 +188,7 @@ window_proc :: proc "stdcall" (
 
 
 draw_box :: proc(
+	hdc : win.HDC,
     name: string,
     x: i32,
     y: i32,
@@ -194,13 +204,10 @@ draw_box :: proc(
         return
     }
     
-    local_hdc := win.GetDC(overlaywindow)
-    if local_hdc == nil {
+    if hdc == nil {
         fmt.eprintf("Failed to get device context for square '%s'\n", name)
         return
     }
-    defer win.ReleaseDC(overlaywindow, local_hdc)
-    
     // --- Draw the Square Outline ---
     pen := win.CreatePen(win.PS_SOLID, border_width, color)
     if pen == nil {
@@ -209,42 +216,40 @@ draw_box :: proc(
     }
     defer win.DeleteObject(win.HGDIOBJ(pen))
 
-    old_pen := win.SelectObject(local_hdc, win.HGDIOBJ(pen))
+    old_pen := win.SelectObject(hdc, win.HGDIOBJ(pen))
     if old_pen == nil {
         fmt.eprintf("Failed to select pen into DC for square '%s'\n", name)
         return
     }
-    defer win.SelectObject(local_hdc, old_pen)
+    defer win.SelectObject(hdc, old_pen)
 
-    // Rest of your drawing code, but use local_hdc instead of hdc
+    // Rest of your drawing code, but use hdc instead of hdc
     null_brush := win.GetStockObject(win.NULL_BRUSH)
-    old_brush := win.SelectObject(local_hdc, null_brush)
-    defer win.SelectObject(local_hdc, old_brush)
+    old_brush := win.SelectObject(hdc, null_brush)
+    defer win.SelectObject(hdc, old_brush)
 
     right := x + size
     bottom := y + size
 
-    if !win.Rectangle(local_hdc, x, y, right, bottom) {
+    if !win.Rectangle(hdc, x, y, right, bottom) {
         fmt.eprintf("Failed to draw rectangle for square '%s'\n", name)
     }
 
     if len(name) > 0 {
         name_wstr := win.utf8_to_wstring(name)
-        old_text_color := win.SetTextColor(local_hdc, text_color)
-        defer win.SetTextColor(local_hdc, old_text_color)
-        old_bk_mode := win.SetBkMode(local_hdc, win.BKMODE.TRANSPARENT)
+        old_text_color := win.SetTextColor(hdc, text_color)
+        defer win.SetTextColor(hdc, old_text_color)
+        old_bk_mode := win.SetBkMode(hdc, win.BKMODE.TRANSPARENT)
 
         text_x := x
         text_y := bottom + text_y_offset
-        if !win.TextOutW(local_hdc, text_x, text_y, name_wstr, i32(len(name))) {
+        if !win.TextOutW(hdc, text_x, text_y, name_wstr, i32(len(name))) {
             fmt.eprintf("Failed to draw text for square '%s'\n", name)
         }
     }
-	// win.InvalidateRect(overlaywindow, nil, false)
 }
 
-// Renamed drawing function for clarity
-draw_overlay_content :: proc(hdc: win.HDC, hwnd: win.HWND) {
+draw_center_box :: proc(hdc: win.HDC, hwnd: win.HWND) {
 
 	client_rect: win.RECT
 	if !win.GetClientRect(hwnd, &client_rect) {
@@ -256,8 +261,8 @@ draw_overlay_content :: proc(hdc: win.HDC, hwnd: win.HWND) {
 	screen_height := client_rect.bottom - client_rect.top
 
 	// --- Define the *size* of the box ---
-	box_width: i32 = 200
-	box_height: i32 = 150
+	box_width: i32 = 40
+	box_height: i32 = 20
 
 	// --- Calculate coordinates for centered box ---
 	center_x := screen_width / 2
